@@ -1,0 +1,49 @@
+server:
+  port: 9000
+  
+spring:
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+  application:
+    name: api-gatway
+  cloud:
+    gateway:
+      routes:
+      - id: user-route
+        uri: lb://user-service
+        predicates:
+        - Path=/Users/**
+        filters:
+        - RequestValidationFilter
+        
+      - id: hotel-route
+        uri: lb://hotel-service
+        predicates:
+        - Path=/Hotels/**
+        filters:
+        - RequestValidationFilter
+      
+      - id: rating-route
+        uri: lb://rating-service
+        predicates:
+        - Path=/Ratings/**
+        filters:
+        - RequestValidationFilter
+    config:
+      enabled: false    
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url.defaultZone: http://localhost:8761/eureka
+    
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    
+  
+    

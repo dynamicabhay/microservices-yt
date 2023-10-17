@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -18,17 +19,26 @@ import com.user.service.entities.Hotel;
 import com.user.service.entities.Rating;
 import com.user.service.entities.User;
 import com.user.service.exception.ResourceNotFoundException;
+import com.user.service.externalServices.HotelService;
+import com.user.service.externalServices.RatingService;
 import com.user.service.repositories.UserRepository;
 import com.user.service.services.UserService;
 
 @Service
 public class userServiceImpl implements UserService {
-
+	
+	
 	@Autowired
 	private UserRepository dbHandler;
 	
 	@Autowired
 	private RestTemplate restTemplate;
+	
+	@Autowired
+	private HotelService hotelService;
+	
+	@Autowired
+	private RatingService ratingService;
 	
 	private Logger logger = LoggerFactory.getLogger(userServiceImpl.class);
 	@Override
@@ -41,21 +51,27 @@ public class userServiceImpl implements UserService {
 	}
 
 	@Override
+	@Cacheable("user")
 	public User getUser(String id) {
 		
 		try {
-		
+			
+			
+		logger.info("calling database to get id: " + id);
 		User user = dbHandler.findById(id).orElseThrow(()-> new ResourceNotFoundException("resource not present"));
 		
 		// get the ratings from rating microservice using httplicent(RestTemplate);
-		 Rating[] ratings = restTemplate.getForObject("http://localhost:8082/Ratings/Users/"+id, Rating[].class);
-		 List<Rating> userRatings = Arrays.asList(ratings);
+		// Rating[] ratings = restTemplate.getForObject("http://rating-service/Ratings/Users/"+id, Rating[].class);
+		// List<Rating> userRatings = Arrays.asList(ratings);
 		// user.setRating(ratings);
-		 logger.info("ratings are :" + ratings);
+		 
+		List<Rating> userRatings = ratingService.getRatings(id);
+		 logger.info("ratings are :" + userRatings.toString());
 		 
 		List<Rating> finalRatingList = userRatings.stream().map(rating -> {
-			ResponseEntity<Hotel> hotelEntity = restTemplate.getForEntity("http://localhost:8081/Hotels/"+rating.getHotelId(),Hotel.class);
-			rating.setHotel(hotelEntity.getBody());
+			//ResponseEntity<Hotel> hotelEntity = restTemplate.getForEntity("http://hotel-service/Hotels/"+rating.getHotelId(),Hotel.class);
+			Hotel hotel = hotelService.getHotel(rating.getHotelId());
+			rating.setHotel(hotel);
 			return rating;
 		 }).collect(Collectors.toList());
 		user.setRating(finalRatingList);

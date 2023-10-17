@@ -1,0 +1,139 @@
+version: '3'
+services:
+
+  dbservice:
+    image: mysql
+    container_name: mysql
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 3309:3306
+    environment:
+    - MYSQL_USER=user1
+    - MYSQL_PASSWORD=user1
+    - MYSQL_ROOT_PASSWORD=root
+    volumes:
+    - my-db-vol:/var/lib/mysql
+  
+  postgresqldbservice:
+    image: postgres:latest
+    container_name: postgresql
+    restart: always
+    hostname: localhost
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=microserviceytlearning
+    ports:
+      - 5432:5432
+    volumes: 
+      - my-pgdb-vol2:/var/lib/postgresql/data
+  
+  discovery-server:
+    build: Eureka/
+    container_name: discovery-server
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8761:8761
+    
+  config-server:
+    build: configServer/
+    container_name: config-server
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8084:8084
+    depends_on:
+    - discovery-server
+    environment:
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+  auth-server:
+    build: Authorization/
+    container_name: auth-server
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8888:8888
+    depends_on:
+    - dbservice
+    - discovery-server
+    environment:
+    - spring.datasource.url=jdbc:mysql://dbservice:3306/microserviceytlearning?createDatabaseIfNotExist=true
+    - spring.datasource.username=root
+    - spring.datasource.password=root
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+  apigateway-service:
+    build: ApiGateway/
+    container_name: apiGateway
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 9000:9000
+    depends_on:
+    - discovery-server    
+    environment:
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+  user-service:
+    build: UserService/
+    container_name: user-service
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8080:8080
+    depends_on:
+    - dbservice 
+    - discovery-server
+    environment:
+    - spring.datasource.url=jdbc:mysql://dbservice:3306/microserviceytlearning?createDatabaseIfNotExist=true
+    - spring.datasource.username=root
+    - spring.datasource.password=root
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+  rating-service:
+    build: RatingService/
+    container_name: rating-service
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8082:8082
+    depends_on:
+    - dbservice
+    - discovery-server    
+    environment:
+    - spring.datasource.url=jdbc:mysql://dbservice:3306/microserviceytlearning?createDatabaseIfNotExist=true
+    - spring.datasource.username=root
+    - spring.datasource.password=root
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+  hotel-service:
+    build: HotelService/
+    container_name: hotel-service
+    restart: on-failure
+    hostname: localhost
+    ports:
+    - 8081:8081
+    depends_on:
+        postgresqldbservice:
+            condition: service_started
+        discovery-server:
+            condition: service_started
+    environment:
+    - spring.datasource.url=jdbc:postgresql://postgresqldbservice:5432/microserviceytlearning?createDatabaseIfNotExist=true
+    - spring.datasource.username=postgres
+    - spring.datasource.password=postgres
+    - eureka.client.service-url.defaultZone=http://discovery-server:8761/eureka
+    
+volumes:
+    my-db-vol:
+    my-pgdb-vol2:
+
+    
+  
+        
+    
+ 
+    
